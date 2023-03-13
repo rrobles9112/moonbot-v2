@@ -1,0 +1,141 @@
+
+//@version=5
+strategy("Bollinger Bands - Breakout Strategy",overlay=true, 
+		 initial_capital=10000,
+		 default_qty_value=10,
+		 default_qty_type=strategy.percent_of_equity, 
+		 commission_type=strategy.commission.percent,
+		 commission_value=0.025, 
+		 slippage = 1, 
+		 backtest_fill_limits_assumption = 1)
+
+
+// Define the length of the Bollinger Bands
+bbLengthInput = input.int (15,title="Length", group="Bollinger Bands", inline="BB")
+bbDevInput = input.float (2.0,title="StdDev", group="Bollinger Bands", inline="BB")
+
+// Define the settings for the Trend Filter
+trendFilterInput = input.bool(false, title="Above/Below", group = "Trend Filter", inline="Trend")
+trendFilterPeriodInput = input(223,title="", group = "Trend Filter", inline="Trend")
+trendFilterType = input.string (title="", defval="EMA",options=["EMA","SMA","RMA", "WMA"], group = "Trend Filter", inline="Trend")
+
+volatilityFilterInput = input.bool(true,title="StdDev", group = "Volatility Filter", inline="Vol")
+volatilityFilterStDevLength = input(15,title="",group = "Volatility Filter", inline="Vol")
+volatilityStDevMaLength = input(15,title=">MA",group = "Volatility Filter", inline="Vol")
+
+// Trade Direction Filter
+
+tradeDirectionInput = input.string("Auto",options=["Auto", "Long&Short","Long Only", "Short Only"], title="Trade", group="Direction Filter", tooltip="Auto: if a PERP is detected (in the symbol description), trade long and short\n Otherwise as per user-input")
+
+tradeDirection = switch tradeDirectionInput
+	"Auto" => str.contains(str.lower(syminfo.description), "perp") ? strategy.direction.all : strategy.direction.long
+	"Long&Short" => strategy.direction.all
+	"Long Only" => strategy.direction.long
+    "Short Only" => strategy.direction.short
+	=> strategy.direction.all
+
+strategy.risk.allow_entry_in(tradeDirection)
+
+
+// Calculate and plot the Bollinger Bands
+[bbMiddle, bbUpper, bbLower] = ta.bb (close, bbLengthInput, bbDevInput)
+
+plot(bbMiddle, "Basis", color=color.orange)
+bbUpperPlot = plot(bbUpper, "Upper", color=color.blue)
+bbLowerrPlot = plot(bbLower, "Lower", color=color.blue)
+fill(bbUpperPlot, bbLowerrPlot, title = "Background", color=color.new(color.blue, 95))
+
+
+// Calculate and view Trend Filter
+
+float tradeConditionMa = switch trendFilterType
+	"EMA" => ta.ema(close, trendFilterPeriodInput)
+	"SMA" => ta.sma(close, trendFilterPeriodInput)
+	"RMA" => ta.rma(close, trendFilterPeriodInput)
+    "WMA" => ta.wma(close, trendFilterPeriodInput)
+	// Default used when the three first cases do not match.
+	=> ta.wma(close, trendFilterPeriodInput)
+
+
+trendConditionLong  = trendFilterInput ? close > tradeConditionMa : true
+trendConditionShort = trendFilterInput ? close < tradeConditionMa : true
+plot(trendFilterInput ? tradeConditionMa : na, color=color.yellow)
+
+// Calculate and view Volatility Filter
+
+stdDevClose = ta.stdev(close,volatilityFilterStDevLength)
+volatilityCondition = volatilityFilterInput ? stdDevClose > ta.sma(stdDevClose,volatilityStDevMaLength) : true
+
+bbLowerCrossUnder =  ta.crossunder(close, bbLower)
+bbUpperCrossOver =  ta.crossover(close, bbUpper)
+
+bgcolor(volatilityCondition ? na : color.new(color.red, 95))
+
+
+// Date Filter
+
+start = input.time(timestamp("2017-01-01"), "Start", group="Date Filter")
+finish = input.time(timestamp("2050-01-01"), "End", group="Date Filter")
+
+date_filter = time >= start and time <= finish ? true : false
+
+// Entry and Exit Conditions
+
+entryLongCondition = bbUpperCrossOver and trendConditionLong and volatilityCondition and date_filter
+entryShortCondition = bbLowerCrossUnder and trendConditionShort and volatilityCondition and date_filter
+
+exitLongCondition = bbLowerCrossUnder
+exitShortCondition = bbUpperCrossOver
+
+// Orders
+
+if entryLongCondition
+    strategy.entry("EL", strategy.long)
+    
+
+if entryShortCondition
+    strategy.entry("ES", strategy.short)
+
+if exitShortCondition
+    strategy.close("EL")
+
+if exitShortCondition
+    strategy.close("ES")
+
+
+
+// Long SL/TP/TS
+
+xl_ts_percent      = input.float(2,step=0.5, title= "TS", group="Exit Long", inline="LTS", tooltip="Trailing Treshold %")
+xl_to_percent      = input.float(0.5, step=0.5, title= "TO", group="Exit Long", inline="LTS", tooltip="Trailing Offset %")
+
+xl_ts_tick = xl_ts_percent * close/syminfo.mintick/100
+xl_to_tick = xl_to_percent * close/syminfo.mintick/100
+
+xl_sl_percent      = input.float (2, step=0.5, title="SL",group="Exit Long", inline="LSLTP") 
+xl_tp_percent      = input.float(9, step=0.5, title="TP",group="Exit Long", inline="LSLTP")
+
+xl_sl_price = strategy.position_avg_price * (1-xl_sl_percent/100)
+xl_tp_price = strategy.position_avg_price * (1+xl_tp_percent/100)
+
+strategy.exit("XL+SL/TP", "EL", stop=xl_sl_price, limit=xl_tp_price, trail_points=xl_ts_tick, trail_offset=xl_to_tick,comment_loss= "XL-SL", comment_profit = "XL-TP",comment_trailing = "XL-TS")
+
+// Short SL/TP/TS
+xs_ts_percent      = input.float(2,step=0.5, title= "TS",group="Exit Short", inline ="STS", tooltip="Trailing Treshold %")
+xs_to_percent      = input.float(0.5, step=0.5, title= "TO",group="Exit Short", inline ="STS", tooltip="Trailing Offset %")
+
+xs_ts_tick = xs_ts_percent * close/syminfo.mintick/100
+xs_to_tick = xs_to_percent * close/syminfo.mintick/100
+
+xs_sl_percent      = input.float (2, step=0.5, title="SL",group="Exit Short", tooltip="Stop Loss %") 
+xs_tp_percent      = input.float(9, step=0.5, title="TP",group="Exit Short",  tooltip="Take Profit %")
+
+xs_sl_price = strategy.position_avg_price * (1+xs_sl_percent/100)
+xs_tp_price = strategy.position_avg_price * (1-xs_tp_percent/100)
+
+strategy.exit("XS+SL/TP", "ES", stop=xs_sl_price, limit=xs_tp_price, trail_points=xs_ts_tick, trail_offset=xs_to_tick,comment_loss= "XS-SL", comment_profit = "XS-TP",comment_trailing = "XS-TS")
+
+
+max_intraday_loss = input.int(100, title="Max Intraday Loss (Cash)", group="Risk Management")
+
+strategy.risk.max_intraday_loss(max_intraday_loss, strategy.cash)
