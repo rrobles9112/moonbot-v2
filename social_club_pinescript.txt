@@ -87,6 +87,12 @@ entryShortCondition = bbLowerCrossUnder and trendConditionShort and volatilityCo
 exitLongCondition = bbLowerCrossUnder
 exitShortCondition = bbUpperCrossOver
 
+// Crea una alertcondition para cada condición
+alertcondition(entryLongCondition, title="Long Alert", message="Long Alert triggered!")
+alertcondition(entryShortCondition, title="Short Alert", message="Short Alert triggered!")
+alertcondition(exitLongCondition, title="Exit Short Alert", message="Exit Short Alert triggered!")
+alertcondition(exitShortCondition, title="Exit Short Alert", message="Exit Short Alert triggered!")
+
 // Orders
 
 if entryLongCondition
