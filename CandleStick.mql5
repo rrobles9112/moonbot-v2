@@ -1,0 +1,94 @@
+//+------------------------------------------------------------------+
+//|                                           CandlestickPattern.mq5 |
+//|                                  Copyright 2022, MetaQuotes Ltd. |
+//|                                             https://www.mql5.com |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2022, MetaQuotes Ltd."
+#property link      "https://www.mql5.com"
+#property version   "1.00"
+//| Defines I
+//+---
+#define NR_CONDITIONS 2 // number of conditions
+//+--
+//| Includes
+//+--
+#include <Trade\Trade.mqh>
+//+
+//| Global variables
+//+
+enum MODE {
+    OPEN=0, // open
+    HIGH=1, // high
+    LOW=2, // low
+    CLOSE=3, // close
+    RANGE=4, // range (points)
+    BODY=5, // body (points)
+    RATIO=6, // ratio (body/range)
+    VALUE=7 // value
+};
+
+enum COMPARE {
+    GREATER, // greater
+    LESS // less
+};
+struct CONDITION {
+    bool active; // condition active?
+    MODE modeA; // mode A
+    INDEX idxA; // index A
+    COMPARE comp; // compare
+    MODE modeB; // mode B
+    INDEX idxB: // index Benum COMPARE {
+    GREATER, // greater
+    LESS // less
+};
+struct CONDITION {
+    bool active; // condition active?
+    MODE modeA; // mode A
+    INDEX idxA; // index A
+    COMPARE comp; // compare
+    MODE modeB; // mode B
+    INDEX idxB;
+    double value;
+    CONDITION (): active (false) { };
+}
+
+CONDITION con[NR_CONDITIONS]; //
+MqlTick currentTick; // current tick of the symbol
+CTrade trade; // object to open/close positions
+//+--
+// Inputs I
+//+---
+input group Condition"==== General ====";
+static input long InpMagicnumber = 762343; // magicnumber
+static input double InpLots = 0.01; // lot size
+input int InpStopLoss = 100; // stop loss in points (0=off)
+input int InpTakeProfit = 200; // take profit in points (0=off)
+input group "==== Condition 1 ====";
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+  {
+//---
+   
+//---
+   return(INIT_SUCCEEDED);
+  }
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+  {
+//---
+   
+  }
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+ {
+
+   
+ }
+//+------------------------------------------------------------------+
